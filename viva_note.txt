@@ -1,0 +1,325 @@
+═══════════════════════════════════════════════════════════════════════════════
+  PLAYWRIGHT TESTING — VIVA PREPARATION NOTES
+  Project: Automated Testing of https://www.saucedemo.com
+═══════════════════════════════════════════════════════════════════════════════
+
+───────────────────────────────────────────────────────────────────────────────
+  WHAT IS PLAYWRIGHT?
+───────────────────────────────────────────────────────────────────────────────
+Playwright is an open-source automated testing framework developed by Microsoft.
+It allows you to write scripts that control a real browser (Chrome, Firefox,
+Safari) and test web applications automatically.
+
+Why use Playwright?
+  - Tests run across all major browsers (Chromium, Firefox, WebKit/Safari)
+  - Tests run fast and in parallel
+  - Catches bugs before users encounter them
+  - Reduces the need for manual click-through testing
+  - Tests act as living documentation of how the app is supposed to work
+
+
+───────────────────────────────────────────────────────────────────────────────
+  WHAT IS SAUCEDEMO?
+───────────────────────────────────────────────────────────────────────────────
+Saucedemo (https://www.saucedemo.com) is a fake e-commerce demo site built
+specifically for testing practice. It has:
+  - A login page (username: standard_user, password: secret_sauce)
+  - An inventory/products page with 6 items
+  - A shopping cart
+  - A checkout form (first name, last name, postal code)
+  - An order confirmation page
+
+
+───────────────────────────────────────────────────────────────────────────────
+  FEATURE 1 — ASSERTIONS
+  Files: tests/Assertions/login.spec.ts
+         tests/Assertions/cart.spec.ts
+         tests/Assertions/product.spec.ts
+───────────────────────────────────────────────────────────────────────────────
+WHAT IS IT?
+  Assertions are checks that verify something on the page is correct.
+  In Playwright, assertions use the "expect()" function.
+
+COMMON ASSERTIONS USED:
+  expect(page).toHaveURL(...)          — checks the current URL
+  expect(element).toBeVisible()        — checks element is on screen
+  expect(element).toHaveText('...')    — checks exact text content
+  expect(element).toContainText('...') — checks text is contained
+  expect(element).toHaveCount(6)       — checks number of elements
+  expect(element).toBeEnabled()        — checks a button/input is clickable
+  expect(element).toBeEditable()       — checks an input can be typed into
+  expect(element).not.toBeVisible()    — checks element is NOT visible
+  expect.soft(element).toBeVisible()   — soft assertion: failure is recorded
+                                         but test keeps running
+
+EXAMPLES FROM OUR PROJECT:
+  - After login, check the URL contains "inventory"
+  - Check exactly 6 products are shown on the inventory page
+  - Check the error message appears when wrong password is entered
+  - Check product prices all contain a "$" sign
+  - Use soft assertions to check multiple login-page states at once
+
+WHY IS IT USEFUL?
+  Assertions are the core of any test — without them, a test does nothing.
+  They confirm that what the user sees is what is expected. If a developer
+  changes something that breaks the login page, the assertion catches it
+  immediately instead of a user finding it in production.
+
+
+───────────────────────────────────────────────────────────────────────────────
+  FEATURE 2 — FIXTURES & SETUP/TEARDOWN
+  Files: tests/Fixtures/fixtures.ts       ← defines all custom fixtures
+         tests/Fixtures/cart.spec.ts
+         tests/Fixtures/locked-out.spec.ts
+───────────────────────────────────────────────────────────────────────────────
+WHAT IS IT?
+  Fixtures are reusable pieces of setup code that run before a test begins.
+  Instead of writing the same login steps in every single test, you define
+  a fixture once and all tests that need it just request it by name.
+
+HOW DOES IT WORK?
+  You use test.extend() to create a custom fixture:
+
+    export const test = base.extend<MyFixtures>({
+      loggedInPage: async ({ page }, use) => {
+        // SETUP: go to site and login
+        await page.goto('https://www.saucedemo.com/');
+        await page.fill('#user-name', 'standard_user');
+        await page.fill('#password', 'secret_sauce');
+        await page.click('#login-button');
+        await use(page);   // <-- hand the ready page to the test
+        // TEARDOWN: Playwright resets the browser context automatically
+      }
+    });
+
+  Then in a test, just use { loggedInPage } instead of { page }:
+    test('My test', async ({ loggedInPage }) => {
+      // already logged in — no login code needed here
+    });
+
+FIXTURES WE CREATED:
+  loggedInPage      — page already logged in on inventory
+  cartPage          — logged in + one item added + cart opened
+  checkoutPage      — logged in + item added + checkout step 1 opened
+  lockedOutPage     — attempted login as "locked_out_user"
+  multiCartPage     — logged in + 3 different items added to cart
+  productDetailPage — logged in + first product's detail page opened
+
+WHY IS IT USEFUL?
+  - Removes duplicate login code from every test file
+  - If the login process changes (e.g. new field added), you only update
+    the fixture in ONE place and all tests are fixed instantly
+  - Makes tests shorter and easier to read
+  - Ensures consistent starting state for each test
+
+
+───────────────────────────────────────────────────────────────────────────────
+  FEATURE 3 — MOCKING / NETWORK INTERCEPTION
+  File: tests/Mocking/mocking.spec.ts
+───────────────────────────────────────────────────────────────────────────────
+WHAT IS IT?
+  Mocking means intercepting network requests that the browser makes and
+  replacing the real response with a fake one you control.
+  Playwright uses page.route() to intercept requests.
+
+HOW DOES IT WORK?
+  await page.route('**/inventory.html', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<h1>Mocked Page</h1>'
+    });
+  });
+  // Now when the browser tries to load inventory.html, it gets our fake HTML
+
+TYPES OF MOCKING WE USED:
+  route.fulfill()    — replace the response with custom data
+  route.abort()      — block the request entirely (e.g. block all images)
+  route.continue()   — let the request go through (e.g. with added delay)
+  route.fetch()      — fetch the real response, then modify its headers
+
+EXAMPLES FROM OUR PROJECT:
+  - Replace the inventory page with 3 custom mock products and check count
+  - Replace the inventory page with a simple mocked h1 heading
+  - Block all PNG/JPG images and verify the page structure still works
+  - Intercept the inventory page, fetch the real response, then add a
+    custom header before fulfilling
+  - Simulate a slow network (500ms delay via route.continue()) and verify
+    login still completes successfully
+
+WHY IS IT USEFUL?
+  - Test error states (404, 500) without breaking the real server
+  - Test slow network conditions without throttling your internet
+  - Test what happens if an API returns unexpected data
+  - Makes tests independent from the backend — tests run faster and
+    don't fail because of server downtime
+
+
+───────────────────────────────────────────────────────────────────────────────
+  FEATURE 4 — TEST REPORTING
+  File: tests/Reporting/reporting.spec.ts
+───────────────────────────────────────────────────────────────────────────────
+WHAT IS IT?
+  Test reporting is how Playwright communicates test results. Our project
+  uses three reporters simultaneously and also demonstrates test-level APIs
+  for adding structured information to the HTML report.
+
+REPORTERS CONFIGURED (in playwright.config.ts):
+  'list'  — prints each test name and pass/fail status live in the terminal
+  'html'  — generates an interactive report at playwright-report/index.html
+  'json'  — writes a machine-readable results file (test-results.json)
+            useful for CI pipelines and dashboards
+
+TEST-LEVEL REPORTING APIS:
+  test.step('name', fn)
+    — wraps actions in a named block; appears as a collapsible row in the
+      HTML report with its own timing and pass/fail status
+
+  test.info().annotations.push({ type, description })
+    — attaches metadata (issue links, feature names, env info) to a test;
+      visible in the HTML report's detail panel
+
+  test.info().attach('name', { body, contentType })
+    — embeds a file (e.g. a screenshot) directly in the HTML report as a
+      clickable attachment; useful for before/after comparisons
+
+  screenshot: 'only-on-failure'  (set in playwright.config.ts)
+    — Playwright automatically captures a screenshot at the exact moment
+      any assertion fails; no code needed in the test itself
+
+  test.fail()
+    — marks a test as an "expected failure"; if it fails as expected the
+      overall suite stays green — useful for demonstrating failure states
+      in CI without breaking the build
+
+  test.step({ box: true })
+    — when a boxed step fails, the error points to the step() call site
+      rather than deep inside a helper function — cleaner stack traces
+
+EXAMPLES FROM OUR PROJECT:
+  - Full purchase workflow (login → add to cart → checkout → confirm)
+    broken into 8 named steps, each visible in the HTML report
+  - Test annotated with an issue URL, feature name, and browser info
+  - Screenshots attached before login, after login, and after adding to cart
+  - Intentional failure test showing automatic screenshot capture
+  - Boxed steps verifying each product is visible on the inventory page
+
+HOW TO VIEW THE REPORTS:
+  Terminal (list reporter):   npx playwright test
+  HTML report:                npx playwright show-report
+  JSON file:                  open test-results.json in any editor
+
+WHY IS IT USEFUL?
+  - HTML report lets you click into any failed test and see exactly which
+    step failed, with a screenshot and a full trace of browser actions
+  - JSON report integrates with CI dashboards (GitHub Actions, Jenkins)
+  - Annotations link tests to tickets so you know WHY a test exists
+  - Automatic failure screenshots save time — no need to reproduce manually
+
+
+───────────────────────────────────────────────────────────────────────────────
+  HOW TO RUN THE TESTS
+───────────────────────────────────────────────────────────────────────────────
+Install (first time only):
+  npm install
+  npx playwright install
+
+Run all tests (all 3 browsers):
+  npx playwright test
+
+Run one browser only (faster for demos):
+  npx playwright test --project=chromium
+
+Run only one member's section:
+  npx playwright test tests/Assertions/
+  npx playwright test tests/Fixtures/
+  npx playwright test tests/Mocking/
+  npx playwright test tests/Reporting/
+
+Open the HTML report after running:
+  npx playwright show-report
+
+Interactive UI mode (great for live demos):
+  npx playwright test --ui
+
+Headed mode (browser window is visible):
+  npx playwright test --headed
+
+
+───────────────────────────────────────────────────────────────────────────────
+  QUALITY BENEFITS SUMMARY (for viva questions)
+───────────────────────────────────────────────────────────────────────────────
+Q: Why is automated testing better than manual testing?
+A: Automated tests run in seconds, can test all browsers at once, never
+   forget a step, and run on every code change. Manual testing is slow,
+   error-prone, and cannot scale.
+
+Q: What quality benefit does Playwright provide?
+A: It catches regressions (broken features) immediately. If a developer
+   changes the login button ID, the test fails right away instead of a
+   user discovering the login is broken in production.
+
+Q: Why use Fixtures?
+A: Removes duplicated setup code. One change to the fixture fixes all tests
+   that use it. Makes tests shorter and easier to read.
+
+Q: Why use Mocking?
+A: Lets you test error conditions (server errors, slow networks) that are
+   hard or impossible to trigger on a real server. Tests become independent
+   of the backend and run faster.
+
+Q: Why use Test Reporting?
+A: Reports give instant visibility into what failed, where it failed, and
+   what the page looked like at the moment of failure. The HTML report shows
+   named steps, attached screenshots, and annotations linking tests to
+   tickets — essential for team communication and debugging.
+
+Q: What is the difference between a locator and a selector?
+A: A selector is the raw CSS/XPath string (e.g. '#login-button').
+   A locator is Playwright's smart wrapper around a selector — it
+   auto-waits for the element to be ready before interacting with it.
+
+Q: What does expect().toHaveCount(6) do?
+A: It asserts that exactly 6 elements matching the locator exist on the page.
+   If there are 5 or 7, the test fails with a clear message.
+
+Q: What browsers does Playwright test on?
+A: Chromium (Chrome/Edge), Firefox, and WebKit (Safari). Our config runs
+   all three, so we catch browser-specific bugs automatically.
+
+Q: What is the difference between route.fulfill() and route.abort()?
+A: route.fulfill() returns a custom response to the browser (mock data,
+   mock HTML). route.abort() drops the request entirely so the browser
+   receives a network error — useful for testing how the app handles
+   missing resources.
+
+Q: What is the difference between expect() and expect.soft()?
+A: expect() throws immediately when the assertion fails, stopping the test.
+   expect.soft() records the failure but lets the test keep running, so
+   you can collect multiple failures in a single test run.
+
+
+───────────────────────────────────────────────────────────────────────────────
+  PROJECT FOLDER STRUCTURE
+───────────────────────────────────────────────────────────────────────────────
+Playwright-Testing/
+├── playwright.config.ts        — global config (timeout, browsers, reporters)
+├── package.json                — project dependencies
+├── tsconfig.json               — TypeScript compiler settings
+├── .gitignore                  — excludes node_modules, reports, results
+├── viva_note.txt               — this file
+└── tests/
+    ├── Assertions/             — Feature 1: expect() assertion tests
+    │   ├── login.spec.ts       — login page assertions
+    │   ├── cart.spec.ts        — cart assertions
+    │   └── product.spec.ts     — product page assertions
+    ├── Fixtures/               — Feature 2: test.extend() fixture tests
+    │   ├── fixtures.ts         ← defines all 6 custom fixtures
+    │   ├── cart.spec.ts        — tests using loggedInPage, cartPage, etc.
+    │   └── locked-out.spec.ts  — tests using lockedOutPage fixture
+    ├── Mocking/                — Feature 3: page.route() network mocking
+    │   └── mocking.spec.ts
+    └── Reporting/              — Feature 4: steps, annotations, screenshots
+        └── reporting.spec.ts
+
+═══════════════════════════════════════════════════════════════════════════════

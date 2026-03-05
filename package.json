@@ -1,0 +1,20 @@
+{
+  "name": "playwright-testing-demo",
+  "version": "1.0.0",
+  "description": "Playwright testing demonstration: Assertions, Fixtures, Mocking, and Reporting",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report",
+    "test:assertions": "playwright test tests/01-assertions.spec.ts",
+    "test:fixtures": "playwright test tests/02-fixtures-setup.spec.ts",
+    "test:mocking": "playwright test tests/03-mocking.spec.ts",
+    "test:reporting": "playwright test tests/04-reporting.spec.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "typescript": "^5.4.0"
+  }
+}
