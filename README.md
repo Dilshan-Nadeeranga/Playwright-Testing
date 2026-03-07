@@ -193,6 +193,27 @@ Playwright tracks URL changes and page state automatically across navigation eve
 
 ---
 
+## CI/CD — GitHub Actions
+
+The workflow at `.github/workflows/playwright.yml` runs automatically on every push and pull request to `main`.
+
+| Step | What it does |
+|------|-------------|
+| `actions/checkout@v4` | Clones the repository |
+| `actions/setup-node@v4` | Installs Node.js 20 with npm cache |
+| `npm ci` | Installs exact dependency versions from `package-lock.json` |
+| `npx playwright install --with-deps` | Installs Chromium, Firefox, WebKit + OS dependencies |
+| `npx playwright test` | Runs the full suite across all 3 browsers |
+| `upload-artifact` (HTML report) | Saves `playwright-report/` — downloadable for 30 days |
+| `upload-artifact` (JSON results) | Saves `test-results.json` for dashboards/scripts |
+| `upload-artifact` (traces) | Saves failure screenshots and traces for debugging |
+
+> Artifacts are uploaded with `if: always()` so they are available even when tests fail.
+
+To download a report after a run: **GitHub → Actions → select a run → Artifacts**.
+
+---
+
 ## .gitignore
 
 ```

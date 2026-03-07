@@ -10,10 +10,15 @@ async function loginAndOpenCheckout(page: import('@playwright/test').Page) {
   await page.fill('#password', PASSWORD);
   await page.click('#login-button');
   await page.waitForURL(/inventory/);
+  // Wait for the inventory list to be present before interacting — fixes Firefox flakiness
+  await page.waitForSelector('.inventory_list');
   await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
   await page.click('.shopping_cart_link');
+  await page.waitForURL(/cart/);
   await page.click('[data-test="checkout"]');
   await page.waitForURL(/checkout-step-one/);
+  // Wait for the form to be ready before tests interact with it
+  await page.waitForSelector('[data-test="firstName"]');
 }
 
 // ─── Login Form ────────────────────────────────────────────────────────────────

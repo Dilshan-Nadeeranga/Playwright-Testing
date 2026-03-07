@@ -10,7 +10,8 @@ async function login(page: import('@playwright/test').Page) {
   await page.fill('#password', PASSWORD);
   await page.click('#login-button');
   await page.waitForURL(/inventory/);
-  await page.waitForLoadState('domcontentloaded');
+  // Wait for the inventory list element — ensures Firefox/WebKit have fully rendered the page
+  await page.waitForSelector('.inventory_list');
 }
 
 // ─── Page-to-page Navigation ───────────────────────────────────────────────────
@@ -109,7 +110,9 @@ test('Navigation — hamburger menu opens the sidebar', async ({ page }) => {
 
   await page.click('#react-burger-menu-btn');
 
-  // The sidebar should become visible with the nav links
+  // Wait for the sidebar CSS slide-in animation to settle before asserting visibility
+  // (WebKit runs the animation slower, causing flakiness without this wait)
+  await page.waitForSelector('.bm-menu-wrap[aria-hidden="false"]');
   await expect(page.locator('.bm-menu-wrap')).toBeVisible();
   await expect(page.locator('#inventory_sidebar_link')).toBeVisible();
   await expect(page.locator('#logout_sidebar_link')).toBeVisible();

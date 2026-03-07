@@ -332,6 +332,76 @@ WHY IS IT USEFUL?
 
 
 ───────────────────────────────────────────────────────────────────────────────
+  CI/CD — GITHUB ACTIONS
+  File: .github/workflows/playwright.yml
+───────────────────────────────────────────────────────────────────────────────
+WHAT IS IT?
+  A GitHub Actions workflow that runs all Playwright tests automatically
+  every time someone pushes code or opens a pull request on the main branch.
+  This is Continuous Integration (CI) — tests run without anyone having to
+  remember to run them manually.
+
+HOW DOES IT WORK?
+  The workflow file defines a series of steps that GitHub runs on a fresh
+  Ubuntu virtual machine in the cloud:
+
+    1. Checkout — downloads the repository code
+    2. Setup Node.js 20 — installs the JavaScript runtime
+    3. npm ci — installs exact dependency versions (faster, reproducible)
+    4. npx playwright install --with-deps — installs all 3 browsers +
+       the OS-level libraries they need (fonts, graphics, etc.)
+    5. npx playwright test — runs the full suite (all tests, all browsers)
+    6. Upload artifacts — saves the HTML report, JSON results, and any
+       failure screenshots/traces so they can be downloaded from GitHub
+
+KEY WORKFLOW CONCEPTS:
+  on: push / pull_request
+    — triggers: the workflow runs on every push to main AND on every PR
+      targeting main. This means broken code is caught before it is merged.
+
+  runs-on: ubuntu-latest
+    — GitHub provides a fresh Linux VM for each run. Tests always start
+      from a clean state — no leftover files from previous runs.
+
+  if: always()
+    — the artifact upload steps run even if the tests fail. Without this,
+      you would lose the report for the exact run that had failures.
+
+  timeout-minutes: 30
+    — if something hangs (e.g. a browser never opens), the job is killed
+      after 30 minutes so it does not block the CI queue forever.
+
+  retention-days: 30
+    — uploaded artifacts (HTML report, JSON, traces) are kept for 30 days,
+      giving the team time to review them before they are auto-deleted.
+
+WHY IS IT USEFUL?
+  - Tests run on every commit — no one can accidentally merge broken code
+  - The HTML report is always available as a downloadable artifact, even
+    for runs on other people's machines or branches
+  - Failure screenshots and traces are captured automatically, so debugging
+    a CI failure is as easy as downloading the artifact and opening the report
+  - Running on Ubuntu catches Linux-specific rendering differences that
+    might not appear on Windows or macOS
+
+HOW TO VIEW CI RESULTS:
+  GitHub → repository → Actions tab → click a workflow run
+  → scroll down to "Artifacts" → download "playwright-report"
+  → open playwright-report/index.html in your browser
+
+Q: Why use "npm ci" instead of "npm install" in CI?
+A: npm ci installs the exact versions recorded in package-lock.json, fails
+   if the lock file is out of sync, and never modifies it. This makes CI
+   builds reproducible — the same package versions every time.
+
+Q: What does "npx playwright install --with-deps" do?
+A: It downloads the browser binaries (Chromium, Firefox, WebKit) AND
+   installs the OS-level system libraries those browsers need (libglib,
+   libx11, fonts, etc.). On a fresh Ubuntu VM these libraries are not
+   pre-installed, so --with-deps is required for browsers to launch.
+
+
+───────────────────────────────────────────────────────────────────────────────
   HOW TO RUN THE TESTS
 ───────────────────────────────────────────────────────────────────────────────
 Install (first time only):
