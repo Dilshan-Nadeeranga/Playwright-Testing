@@ -12,6 +12,8 @@ A group demonstration project covering four key Playwright features, tested agai
 | Member 2 | **Fixtures & Setup/Teardown** — `test.extend()`, hooks | `tests/Fixtures/` |
 | Member 3 | **Mocking/Stubbing** — `page.route()` | `tests/Mocking/` |
 | Member 4 | **Test Reporting** — steps, annotations, HTML/JSON | `tests/Reporting/` |
+| Member 5 | **Forms** — form input, validation, error states | `tests/Forms/` |
+| Member 6 | **Navigation** — page flow, sidebar, browser history | `tests/Navigation/` |
 
 ---
 
@@ -33,8 +35,12 @@ Playwright-Testing/
     │   └── locked-out.spec.ts    ← Member 2: lockedOutPage fixture
     ├── Mocking/
     │   └── mocking.spec.ts       ← Member 3: network interception
-    └── Reporting/
-        └── reporting.spec.ts     ← Member 4: steps, annotations, screenshots
+    ├── Reporting/
+    │   └── reporting.spec.ts     ← Member 4: steps, annotations, screenshots
+    ├── Forms/
+    │   └── forms.spec.ts         ← Member 5: form input, validation, error states
+    └── Navigation/
+        └── navigation.spec.ts    ← Member 6: page flow, sidebar, browser history
 ```
 
 ---
@@ -71,6 +77,8 @@ npx playwright test tests/Assertions/
 npx playwright test tests/Fixtures/
 npx playwright test tests/Mocking/
 npx playwright test tests/Reporting/
+npx playwright test tests/Forms/
+npx playwright test tests/Navigation/
 
 # Chromium only (faster for demos)
 npx playwright test --project=chromium
@@ -147,6 +155,41 @@ Test-level reporting APIs:
 - `screenshot: 'only-on-failure'` — automatic failure screenshot (zero test code)
 - `test.fail()` — expected failure: stays green in CI, shows failure screenshot
 - `test.step({ box: true })` — errors point to the step call site for clean traces
+
+---
+
+### Member 5 — Forms (`tests/Forms/`)
+
+Playwright's form APIs let you fill, validate, and submit HTML forms with full assertion support:
+
+| Test scenario | Playwright feature used |
+|---------------|------------------------|
+| Login form accepts input and retains values | `page.fill()`, `toHaveValue()` |
+| Field type attributes are correct | `toHaveAttribute('type', ...)` |
+| Empty login submission shows error | `toContainText('Username is required')` |
+| Username-only submission shows password error | `toContainText('Password is required')` |
+| Error banner dismissed with X button | `page.click('[data-test="error-button"]')`, `not.toBeVisible()` |
+| Checkout form validates all three fields | `toContainText('... is required')` |
+| Checkout form retains typed values | `toHaveValue()` |
+| Valid form data advances to step 2 | `toHaveURL(/checkout-step-two/)` |
+| Cancel button returns to cart | `toHaveURL(/cart/)` |
+
+### Member 6 — Navigation (`tests/Navigation/`)
+
+Playwright tracks URL changes and page state automatically across navigation events:
+
+| Test scenario | Playwright feature used |
+|---------------|------------------------|
+| Login redirects to inventory | `toHaveURL(/inventory/)`, `toHaveText('Products')` |
+| Cart icon navigates to cart page | `toHaveURL(/cart/)` |
+| Checkout, Continue, Finish chain correct URLs | `toHaveURL()` at each step |
+| Product name click opens detail page | `toHaveURL(/inventory-item/)`, `toHaveText()` |
+| "Back to products" returns to inventory | `[data-test="back-to-products"]` |
+| Hamburger menu opens sidebar with nav links | `toBeVisible()` on sidebar elements |
+| "All Items" sidebar link returns to inventory | `toHaveURL(/inventory/)` |
+| Logout returns to login page | `toHaveURL(URL)`, `toBeVisible()` on login button |
+| Browser Back (`page.goBack()`) leaves inventory | `not.toHaveURL(/inventory/)` |
+| Full checkout funnel URL sequence | Sequential `toHaveURL()` assertions |
 
 ---
 

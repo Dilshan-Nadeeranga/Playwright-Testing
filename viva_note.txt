@@ -218,6 +218,120 @@ WHY IS IT USEFUL?
 
 
 ───────────────────────────────────────────────────────────────────────────────
+  FEATURE 5 — FORMS
+  File: tests/Forms/forms.spec.ts
+───────────────────────────────────────────────────────────────────────────────
+WHAT IS IT?
+  Form testing verifies that HTML forms behave correctly — that fields accept
+  input, retain values, show validation errors when required data is missing,
+  and navigate correctly on success or cancellation.
+
+HOW DOES IT WORK?
+  Playwright provides simple APIs for form interaction:
+
+    await page.fill('#user-name', 'standard_user');
+    // toHaveValue checks what value the field currently holds
+    await expect(page.locator('#user-name')).toHaveValue('standard_user');
+
+    // Submit and expect a validation error
+    await page.click('#login-button');
+    await expect(page.locator('[data-test="error"]')).toContainText(
+      'Username is required'
+    );
+
+FORMS WE TESTED:
+  Login form:
+    - Input fields accept text and have correct type attributes (text/password)
+    - Empty submission → "Username is required"
+    - Username only → "Password is required"
+    - Error banner can be dismissed with the X button
+
+  Checkout form (step 1 — personal information):
+    - All three fields (firstName, lastName, postalCode) accept and retain input
+    - Submitting empty → "First Name is required"
+    - Missing lastName → "Last Name is required"
+    - Missing postalCode → "Postal Code is required"
+    - Valid data → advances to checkout step 2 (URL: /checkout-step-two)
+    - Cancel → returns to cart page without submitting
+
+KEY PLAYWRIGHT APIS USED:
+  page.fill(selector, value)     — types text into an input field
+  toHaveValue('...')             — asserts the field currently holds that value
+  toHaveAttribute('type', '...')  — asserts an HTML attribute value
+  toContainText('...')           — asserts error message text
+  not.toBeVisible()              — asserts an element is gone from the page
+
+WHY IS IT USEFUL?
+  Forms are the primary way users send data to an application. Automated form
+  tests catch broken validation, missing error messages, and accidental field
+  type changes before users encounter them. If a developer renames the
+  "firstName" field, the test fails immediately — not in production.
+
+
+───────────────────────────────────────────────────────────────────────────────
+  FEATURE 6 — NAVIGATION
+  File: tests/Navigation/navigation.spec.ts
+───────────────────────────────────────────────────────────────────────────────
+WHAT IS IT?
+  Navigation testing verifies that clicking links and buttons moves the user
+  to the correct page and that the URL changes as expected. It also tests
+  browser history (back/forward) and in-app menus (sidebar).
+
+HOW DOES IT WORK?
+  Playwright tracks URL changes automatically with toHaveURL():
+
+    await page.click('.shopping_cart_link');
+    // Playwright waits until the URL actually changes
+    await expect(page).toHaveURL(/cart/);
+
+  Browser history is tested with Playwright's built-in navigation methods:
+
+    await page.goBack();   // same as clicking the browser Back button
+    await expect(page).not.toHaveURL(/inventory/);
+
+NAVIGATION FLOWS WE TESTED:
+  Page-to-page navigation:
+    - Login → inventory page (URL: /inventory, title: "Products")
+    - Cart icon → cart page (URL: /cart, title: "Your Cart")
+    - Checkout button → checkout step 1 (URL: /checkout-step-one)
+    - Continue button → checkout step 2 (URL: /checkout-step-two)
+    - Finish button → order complete (URL: /checkout-complete)
+    - Product name click → product detail (URL: /inventory-item)
+    - "Back to products" → inventory page
+
+  Sidebar / hamburger menu:
+    - Hamburger button opens the sidebar with nav links visible
+    - "All Items" link navigates back to inventory from any page
+    - "Logout" link returns to the login page
+
+  Browser history:
+    - page.goBack() from inventory returns user to login
+    - Full checkout funnel URL sequence is verified step by step
+
+KEY PLAYWRIGHT APIS USED:
+  toHaveURL(/pattern/)           — asserts current URL matches the regex
+  toHaveText('...')              — asserts the page heading text
+  page.goBack()                  — triggers browser Back button
+  not.toHaveURL(/pattern/)       — asserts URL does NOT match
+
+WHY IS IT USEFUL?
+  Broken navigation is one of the most common and impactful bugs — a wrong
+  redirect sends users to the wrong page. Navigation tests catch these
+  regressions automatically. They also document the intended user journey so
+  new developers understand the expected page flow at a glance.
+
+  Q: What is the difference between toHaveURL() and toContainText()?
+  A: toHaveURL() checks the browser address bar. toContainText() checks
+     text content inside an element on the page. Both auto-wait for the
+     condition to become true — no manual waits needed.
+
+  Q: How does Playwright know when navigation is complete?
+  A: toHaveURL() retries automatically until the URL matches or the timeout
+     expires. You can also use page.waitForURL() before assertions if you
+     need an explicit wait before interacting with the new page.
+
+
+───────────────────────────────────────────────────────────────────────────────
   HOW TO RUN THE TESTS
 ───────────────────────────────────────────────────────────────────────────────
 Install (first time only):
@@ -235,6 +349,8 @@ Run only one member's section:
   npx playwright test tests/Fixtures/
   npx playwright test tests/Mocking/
   npx playwright test tests/Reporting/
+  npx playwright test tests/Forms/
+  npx playwright test tests/Navigation/
 
 Open the HTML report after running:
   npx playwright show-report
@@ -287,6 +403,27 @@ Q: What browsers does Playwright test on?
 A: Chromium (Chrome/Edge), Firefox, and WebKit (Safari). Our config runs
    all three, so we catch browser-specific bugs automatically.
 
+Q: Why test forms with Playwright instead of unit tests?
+A: Unit tests only check JavaScript logic in isolation. Playwright form tests
+   run against a real browser — they catch CSS issues that hide fields, HTML
+   attribute mismatches (wrong input type), and validation messages that only
+   appear after a real click event. They prove the full user experience works.
+
+Q: How does Playwright fill in a form field?
+A: page.fill(selector, value) clears any existing text and types the new
+   value. toHaveValue() then confirms the DOM property holds what was typed,
+   which catches cases where JavaScript overrides the input value.
+
+Q: What does page.goBack() do?
+A: It triggers the browser's Back button programmatically, the same as a user
+   clicking Back. Playwright waits for the navigation to complete before
+   returning control to the test.
+
+Q: Why test navigation separately from other features?
+A: Navigation bugs (wrong redirect, broken link, missing route) are high-impact
+   and often invisible without automated checks. Testing every URL transition
+   ensures the routing layer works correctly across all browsers.
+
 Q: What is the difference between route.fulfill() and route.abort()?
 A: route.fulfill() returns a custom response to the browser (mock data,
    mock HTML). route.abort() drops the request entirely so the browser
@@ -319,7 +456,11 @@ Playwright-Testing/
     │   └── locked-out.spec.ts  — tests using lockedOutPage fixture
     ├── Mocking/                — Feature 3: page.route() network mocking
     │   └── mocking.spec.ts
-    └── Reporting/              — Feature 4: steps, annotations, screenshots
-        └── reporting.spec.ts
+    ├── Reporting/              — Feature 4: steps, annotations, screenshots
+    │   └── reporting.spec.ts
+    ├── Forms/                  — Feature 5: form input, validation, error states
+    │   └── forms.spec.ts
+    └── Navigation/             — Feature 6: page flow, sidebar, browser history
+        └── navigation.spec.ts
 
 ═══════════════════════════════════════════════════════════════════════════════
