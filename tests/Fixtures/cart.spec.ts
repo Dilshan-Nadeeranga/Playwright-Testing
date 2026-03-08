@@ -84,3 +84,18 @@ test('Cart page lists all 3 added items', async ({ multiCartPage }) => {
   const cartItems = multiCartPage.locator('.cart_item');
   await expect(cartItems).toHaveCount(3);
 });
+
+// Intentionally failing test — asserts wrong header to verify failure reporting.
+test('Intentional failure — inventory header should be Products', async ({ loggedInPage }) => {
+  const header = loggedInPage.locator('.title');
+  await expect(header).toHaveText('Inventories');
+});
+
+// Intentionally skipped test — not run, useful for work-in-progress or disabled features.
+test.skip('Skipped — checkout step 2 validation', async ({ checkoutPage }) => {
+  await checkoutPage.fill('[data-test="firstName"]', 'Test');
+  await checkoutPage.fill('[data-test="lastName"]', 'User');
+  await checkoutPage.fill('[data-test="postalCode"]', '12345');
+  await checkoutPage.click('[data-test="continue"]');
+  await expect(checkoutPage).toHaveURL(/checkout-step-two/);
+});
